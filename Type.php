@@ -85,6 +85,7 @@ abstract class Type
     public static function Number() {}
     public static function String() {}
     public static function Buffer() {}
+    public static function Unknown() {}
 
     /**
      * Detect the type of a variable.
