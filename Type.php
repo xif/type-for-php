@@ -69,7 +69,7 @@ abstract class Type
      * Singleton methods.
      * Type::Bool() returns an instance of Type_Bool.
      */
-    /* Not implemented
+    // Not implemented
     public static function Bool() {}
     public static function Int() {}
     public static function Float() {}
@@ -85,7 +85,6 @@ abstract class Type
     public static function Number() {}
     public static function String() {}
     public static function Buffer() {}
-    */
 
     /**
      * Detect the type of a variable.
