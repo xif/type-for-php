@@ -78,7 +78,7 @@ abstract class Type
     public static function Index() {}
     public static function Object() {}
     public static function Resource() {}
-    public static function Nil() {}
+    public static function Nulll() {}
     public static function Callback() {}
     public static function Void() {}
     public static function Mixed() {}
