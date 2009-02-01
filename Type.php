@@ -68,80 +68,81 @@ abstract class Type
      *
      * Singleton methods.
      * Type::Bool() returns an instance of Type_Bool.
+     * Type::Bool(true) returns a cloned instance.
      */
-    public static function Bool()
+    public static function Bool($bool = false)
     {
-        return self::singleton(self::T_BOOL);
+        return self::_shorthand(self::T_BOOL, $bool);
     }
 
-    public static function Int()
+    public static function Int($bool = false)
     {
-        return self::singleton(self::T_INT);
+        return self::_shorthand(self::T_INT, $bool);
     }
 
-    public static function Float()
+    public static function Float($bool = false)
     {
-        return self::singleton(self::T_FLOAT);
+        return self::_shorthand(self::T_FLOAT, $bool);
     }
 
-    public static function Binary()
+    public static function Binary($bool = false)
     {
-        return self::singleton(self::T_BINARY);
+        return self::_shorthand(self::T_BINARY, $bool);
     }
 
-    public static function Unicode()
+    public static function Unicode($bool = false)
     {
-        return self::singleton(self::T_UNICODE);
+        return self::_shorthand(self::T_UNICODE, $bool);
     }
 
-    public static function Index()
+    public static function Index($bool = false)
     {
-        return self::singleton(self::T_INDEX);
+        return self::_shorthand(self::T_INDEX, $bool);
     }
 
-    public static function Object()
+    public static function Object($bool = false)
     {
-        return self::singleton(self::T_OBJECT);
+        return self::_shorthand(self::T_OBJECT, $bool);
     }
 
-    public static function Resource()
+    public static function Resource($bool = false)
     {
-        return self::singleton(self::T_RESOURCE);
+        return self::_shorthand(self::T_RESOURCE, $bool);
     }
 
-    public static function Null()
+    public static function Null($bool = false)
     {
-        return self::singleton(self::T_NULL);
+        return self::_shorthand(self::T_NULL, $bool);
     }
 
-    public static function Callback()
+    public static function Callback($bool = false)
     {
-        return self::singleton(self::T_CALLBACK);
+        return self::_shorthand(self::T_CALLBACK, $bool);
     }
 
-    public static function Void()
+    public static function Void($bool = false)
     {
-        return self::singleton(self::T_VOID);
+        return self::_shorthand(self::T_VOID, $bool);
     }
 
-    public static function Mixed()
+    public static function Mixed($bool = false)
     {
-        return self::singleton(self::T_MIXED);
+        return self::_shorthand(self::T_MIXED, $bool);
     }
 
-    public static function Number()
+    public static function Number($bool = false)
     {
-        return self::singleton(self::T_NUMBER);
+        return self::_shorthand(self::T_NUMBER, $bool);
     }
 
-    public static function String()
+    public static function String($bool = false)
     {
-        return self::singleton(self::T_STRING);
+        return self::_shorthand(self::T_STRING, $bool);
     }
 
-    public static function Buffer()
+    public static function Buffer($bool = false)
     {
-        return self::singleton(self::T_BUFFER);
+        return self::_shorthand(self::T_BUFFER, $bool);
     }
 
     public static function Unknown()
@@ -249,15 +250,6 @@ abstract class Type
      * Returns a duplication of this object.
      *
      * `clone` wrapper for method-chain.
-     *
-     * <code>
-     * <?php
-     *
-     * $type = (clone Type::Int()).min(1); // compile error
-     * $type = Type::Int().dup().min(1); // ok
-     *
-     * ?>
-     * </code>
      *
      * @return Type
      */
@@ -466,6 +458,19 @@ abstract class Type
 
         self::$_classes[$classPath] = $className;
         return $classPath;
+    }
+
+    /**
+     * Return value modification for the shorthand methods.
+     *
+     * @param int $type Type::T_*
+     * @param bool $dup if true returns a cloned instance.
+     * @return Type
+     */
+    private static function _shorthand($type, $bool)
+    {
+        $instance = self::singleton($type);
+        return $bool ? clone $instance : $instance;
     }
 
     // - PRIVATE STATIC }}}
