@@ -245,6 +245,27 @@ abstract class Type
         return $this;
     }
 
+    /**
+     * Returns a duplication of this object.
+     *
+     * `clone` wrapper for method-chain.
+     *
+     * <code>
+     * <?php
+     *
+     * $type = (clone Type::Int()).min(1); // compile error
+     * $type = Type::Int().dup().min(1); // ok
+     *
+     * ?>
+     * </code>
+     *
+     * @return Type
+     */
+    public function dup()
+    {
+        return clone $this;
+    }
+
     // - PUBILC DYNAMIC }}}
     // - PUBLIC }}}
 
@@ -311,20 +332,20 @@ abstract class Type
      * @var array
      */
     private static $_classes = array(
-        self::T_BOOL => 'Type/Bool',
-        self::T_INT => 'Type/Int',
-        self::T_FLOAT => 'Type/Float',
-        self::T_STRING => 'Type/String',
-        self::T_INDEX => 'Type/Index',
-        self::T_OBJECT => 'Type/Object',
+        self::T_BOOL     => 'Type/Bool',
+        self::T_INT      => 'Type/Int',
+        self::T_FLOAT    => 'Type/Float',
+        self::T_STRING   => 'Type/String',
+        self::T_INDEX    => 'Type/Index',
+        self::T_OBJECT   => 'Type/Object',
         self::T_RESOURCE => 'Type/Resource',
-        self::T_NULL => 'Type/Null',
+        self::T_NULL     => 'Type/Null',
         self::T_CALLBACK => 'Type/Callback',
-        self::T_VOID => 'Type/Void',
-        self::T_MIXED => 'Type/Mixed',
-        self::T_NUMBER => 'Type/Number',
-        self::T_STRING => 'Type/String',
-        self::T_BUFFER => 'Type/Buffer');
+        self::T_VOID     => 'Type/Void',
+        self::T_MIXED    => 'Type/Mixed',
+        self::T_NUMBER   => 'Type/Number',
+        self::T_STRING   => 'Type/String',
+        self::T_BUFFER   => 'Type/Buffer');
 
     /**
      * Singleton container.
