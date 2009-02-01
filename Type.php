@@ -69,23 +69,106 @@ abstract class Type
      * Singleton methods.
      * Type::Bool() returns an instance of Type_Bool.
      */
-    // Not implemented
-    public static function Bool() {}
-    public static function Int() {}
-    public static function Float() {}
-    public static function Binary() {}
-    public static function Unicode() {}
-    public static function Index() {}
-    public static function Object() {}
-    public static function Resource() {}
-    public static function Nulll() {}
-    public static function Callback() {}
-    public static function Void() {}
-    public static function Mixed() {}
-    public static function Number() {}
-    public static function String() {}
-    public static function Buffer() {}
-    public static function Unknown() {}
+    public static function Bool()
+    {
+        return self::singleton(self::T_BOOL);
+    }
+
+    public static function Int()
+    {
+        return self::singleton(self::T_INT);
+    }
+
+    public static function Float()
+    {
+        return self::singleton(self::T_FLOAT);
+    }
+
+    public static function Binary()
+    {
+        return self::singleton(self::T_BINARY);
+    }
+
+    public static function Unicode()
+    {
+        return self::singleton(self::T_UNICODE);
+    }
+
+    public static function Index()
+    {
+        return self::singleton(self::T_INDEX);
+    }
+
+    public static function Object()
+    {
+        return self::singleton(self::T_OBJECT);
+    }
+
+    public static function Resource()
+    {
+        return self::singleton(self::T_RESOURCE);
+    }
+
+    public static function Null()
+    {
+        return self::singleton(self::T_NULL);
+    }
+
+    public static function Callback()
+    {
+        return self::singleton(self::T_CALLBACK);
+    }
+
+    public static function Void()
+    {
+        return self::singleton(self::T_VOID);
+    }
+
+    public static function Mixed()
+    {
+        return self::singleton(self::T_MIXED);
+    }
+
+    public static function Number()
+    {
+        return self::singleton(self::T_NUMBER);
+    }
+
+    public static function String()
+    {
+        return self::singleton(self::T_STRING);
+    }
+
+    public static function Buffer()
+    {
+        return self::singleton(self::T_BUFFER);
+    }
+
+    public static function Unknown()
+    {
+        throw new DomainException();
+    }
+
+    /**
+     * Returns the value of T_* by a name of the type
+     *
+     * @param string $typeName
+     * @return int Type::T_*
+     * @throws InvalidArgumentException
+     */
+    public static function constant($typeName)
+    {
+        $string = self::_getStringValueOf($typeName);
+        if ($string === false) {
+            throw new InvalidArgumentException('$typeName must be string');
+        }
+        $string = strtolower($string);
+        if (!isset(self::$_types[$string])) {
+            // gettype() might return 'unknown type'
+            throw new InvalidArgumentException('$typeName not found');
+        }
+        return self::$_types[$string];
+    }
 
     /**
      * Detect the type of a variable.
@@ -99,24 +182,22 @@ abstract class Type
     }
 
     /**
-     * Get the value of T_* by a name of the type
+     * Returns an instance of Type
      *
-     * @param string $typeName
-     * @return int Type::T_*
+     * @param mixed $id Type::T_* or class path (eg. Type/String)
+     * @return Type
      * @throws InvalidArgumentException
      */
-    public static function constant($typeName)
+    public static function singleton($id)
     {
-        $string = self::_getStringValue($typeName);
-        if ($string === false) {
-            throw new InvalidArgumentException('$typeName must be string');
+        if (($classPath = self::_isClassId($id)) === false) {
+            throw new InvaildArgumentExcpeion('Invalid $id');
         }
-        $string = strtolower($string);
-        if (!isset(self::$_typeNames[$string])) {
-            // gettype() might return 'unknown type'
-            throw new InvalidArgumentException('$typeName not found');
-        }
-        return self::$_typeNames[$string];
+
+        $stock = self::$_singleton;
+        return isset($stock[$classPath])
+               ? $stock[$classPath]
+               : $stock[$classPath] = new self::$_classes[$classPath]();
     }
 
     // - PUBLIC STATIC }}}
@@ -179,27 +260,193 @@ abstract class Type
     // {{{ PRIVATE
     // {{{ PRIVATE STATIC
 
-    private static $_typeNames = array(
+    /**
+     * Type table.
+     *
+     * Key: The return value of gettype() excepts 'unknown type'
+     * Value: Type::T_*
+     *
+     * @var array
+     */
+    private static $_types = array(
         'boolean'  => self::T_BOOL,
         'integer'  => self::T_INT,
         'double'   => self::T_FLOAT,
         'string'   => self::T_STRING,
-        'array'    => self::T_ARRAY,
+        'array'    => self::T_INDEX,
         'object'   => self::T_OBJECT,
         'resource' => self::T_RESOURCE,
         'NULL'     => self::T_NULL);
 
-    private static function _getStringValue($value)
+    /**
+     * Class table.
+     *
+     * Key: Type::T_* or class path (eg. Type/MySQL/Varchar etc)
+     * Value: Actual class names (eg. Type_MySQL_Varchar)
+     *        excepts built-in classes. (eg. Type/String)
+     *
+     * Built-in case:
+     * <code>
+     * <?php
+     * 
+     * $id = (int)$someOuterValue;
+     * if (!isset(self::$_classes[$id])) {
+     *     exit('$id is not a valid Type::T_*');
+     * }
+     * $classPath = self::$_classes[$id]; // 'Type/*'
+     * if (!isset(self::$_classes[$classPath])) {
+     *     // class Type_* not loaded
+     *     if (!self::_loadTypeSubclass($classPath)) {
+     *         exit('Failed to load class');
+     *     }
+     *     // _loadTypeSubclass() sets $_classes[$classPath]
+     * }
+     * $className = self::$_classes[$classPath]; // 'Type_*'
+     * $instance = new $className();
+     *
+     * ?>
+     * </code>
+     *
+     * @see _isClassId()
+     * @var array
+     */
+    private static $_classes = array(
+        self::T_BOOL => 'Type/Bool',
+        self::T_INT => 'Type/Int',
+        self::T_FLOAT => 'Type/Float',
+        self::T_STRING => 'Type/String',
+        self::T_INDEX => 'Type/Index',
+        self::T_OBJECT => 'Type/Object',
+        self::T_RESOURCE => 'Type/Resource',
+        self::T_NULL => 'Type/Null',
+        self::T_CALLBACK => 'Type/Callback',
+        self::T_VOID => 'Type/Void',
+        self::T_MIXED => 'Type/Mixed',
+        self::T_NUMBER => 'Type/Number',
+        self::T_STRING => 'Type/String',
+        self::T_BUFFER => 'Type/Buffer');
+
+    /**
+     * Singleton container.
+     *
+     * Key: Type::T_* or class path (eg. Type/String)
+     * Value: Type
+     *
+     * @var array
+     */
+    private static $_singleton = array();
+
+    /**
+     * Returns the string value of a variable.
+     *
+     * Fails if a variable is:
+     *    bool, null, array, resource, no valid __toString() object
+     *
+     * @returns string or false if failed
+     */
+    private static function _getStringValueOf($value)
     {
-        if (!is_object($value)) {
+        if (is_scalar($value) || $value === null) {
             return (string)$value;
         }
-        if (!method_exists('__toString')) {
+        if (!is_object($value) || !method_exists($value, '__toString')) {
             return false;
         }
         $string = @$value->__toString();
         return is_string($string) ? $string : false;
     }
+
+    /**
+     * Find wheter the value of a variable is a class ID.
+     *
+     * @param mixed Type::T_* or class path (eg. Type/String)
+     * @return string Class path
+     */
+    private static function _isClassId($id)
+    {
+        if (is_numeric($id)) {
+            // treat as Type::T_*
+            $int = (int)$id;
+            if (!isset(self::$_classes[$int])) {
+                return false;
+            }
+            $classPath = self::$_classes[$int];
+            if (isset(self::$_classes[$classPath])) {
+                return $classPath;
+            }
+            return self::_loadTypeSubclass($classPath);
+        }
+
+        if (($classPath = self::_getStringValueOf($id)) === false) {
+            return false;
+        }
+
+        if (isset(self::$_classes[$classPath])) {
+            return $classPath;
+        }
+
+        if (!preg_match('@^[a-z][a-z0-9]*(?:/[a-z][a-z0-9]*)*$@i',
+                        $classPath)) {
+            return false;
+        }
+
+        $className = strpos($classPath, '/') === false
+                   ? $classPath : strtr($classPath, '/', '_');
+        if (!class_exists($className) ||
+            !is_subclass_of($className, __CLASS__)) {
+            return false;
+        }
+
+        self::$_classes[$classPath] = $className;
+        return $classPath;
+    }
+
+    /**
+     * Load a built-in subclass.
+     *
+     * This method must be called once per class.
+     * Test before calling, like isset(self::$_classes['Type/String']).
+     *
+     * @see $_classes
+     * @param string $classPath eg. Type/String
+     * @return string $classPath
+     */
+    private static function _loadTypeSubclass($classPath)
+    {
+        static $dirName = null;
+        static $fixSep = false;
+
+        if ($dirName === null) {
+            $dirName = dirname(__FILE__) . DIRECTORY_SEPARATOR;
+            $fixSep = DIRECTORY_SEPARATOR !== '/';
+        }
+
+        $className = strtr($classPath, '/', '_');
+
+        if (interface_exists($className, false)) {
+            return false;
+        }
+
+        if (class_exists($className, false)) {
+            if (!is_subclass_of($className, __CLASS__)) {
+                return false;
+            }
+        }
+
+        require $dirName
+                . ($fixSep ? strtr($classPath, '/', DIRECTORY_SEPARATOR)
+                           : $classPath)
+                . '.php';
+
+        if (!class_exists($className, false) ||
+            !is_subclass_of($className, __CLASS__)) {
+            return false;
+        }
+
+        self::$_classes[$classPath] = $className;
+        return $classPath;
+    }
+
     // - PRIVATE STATIC }}}
     // - PRIVATE }}}
 }
