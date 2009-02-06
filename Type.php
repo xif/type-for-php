@@ -51,12 +51,7 @@ abstract class Type
     // errors
     const E_UNDEFINED = 0;
     const E_CAST      = 1;
-
-    // cast level
-    const L_BUILTIN = 0; // same as pure PHP
-    const L_SAFE    = 1; // (string)(array()), (int)('1abc') fails
-    const L_STRICT  = 2; // (string)(1) fails
-    const L_USER    = 3; // user-specified
+    const E_COND      = 2;
 
     // - CONSTANT }}}
 
@@ -69,80 +64,85 @@ abstract class Type
      * Singleton methods.
      * Type::Bool() returns an instance of Type_Bool.
      * Type::Bool(true) returns a cloned instance.
+     *
+     * @see Type::_shorthand()
+     * @param bool $clone returns a cloned instance if true.
+     * @returns Type
+     * @throws DomainException
      */
-    public static function Bool($bool = false)
+    public static function Bool($clone = false)
     {
-        return self::_shorthand(self::T_BOOL, $bool);
+        return self::_shorthand(self::T_BOOL, $clone);
     }
 
-    public static function Int($bool = false)
+    public static function Int($clone = false)
     {
-        return self::_shorthand(self::T_INT, $bool);
+        return self::_shorthand(self::T_INT, $clone);
     }
 
-    public static function Float($bool = false)
+    public static function Float($clone = false)
     {
-        return self::_shorthand(self::T_FLOAT, $bool);
+        return self::_shorthand(self::T_FLOAT, $clone);
     }
 
-    public static function Binary($bool = false)
+    public static function Binary($clone = false)
     {
-        return self::_shorthand(self::T_BINARY, $bool);
+        return self::_shorthand(self::T_BINARY, $clone);
     }
 
-    public static function Unicode($bool = false)
+    public static function Unicode($clone = false)
     {
-        return self::_shorthand(self::T_UNICODE, $bool);
+        return self::_shorthand(self::T_UNICODE, $clone);
     }
 
-    public static function Index($bool = false)
+    public static function Index($clone = false)
     {
-        return self::_shorthand(self::T_INDEX, $bool);
+        return self::_shorthand(self::T_INDEX, $clone);
     }
 
-    public static function Object($bool = false)
+    public static function Object($clone = false)
     {
-        return self::_shorthand(self::T_OBJECT, $bool);
+        return self::_shorthand(self::T_OBJECT, $clone);
     }
 
-    public static function Resource($bool = false)
+    public static function Resource($clone = false)
     {
-        return self::_shorthand(self::T_RESOURCE, $bool);
+        return self::_shorthand(self::T_RESOURCE, $clone);
     }
 
-    public static function Null($bool = false)
+    public static function Null($clone = false)
     {
-        return self::_shorthand(self::T_NULL, $bool);
+        return self::_shorthand(self::T_NULL, $clone);
     }
 
-    public static function Callback($bool = false)
+    public static function Callback($clone = false)
     {
-        return self::_shorthand(self::T_CALLBACK, $bool);
+        return self::_shorthand(self::T_CALLBACK, $clone);
     }
 
-    public static function Void($bool = false)
+    public static function Void($clone = false)
     {
-        return self::_shorthand(self::T_VOID, $bool);
+        return self::_shorthand(self::T_VOID, $clone);
     }
 
-    public static function Mixed($bool = false)
+    public static function Mixed($clone = false)
     {
-        return self::_shorthand(self::T_MIXED, $bool);
+        return self::_shorthand(self::T_MIXED, $clone);
     }
 
-    public static function Number($bool = false)
+    public static function Number($clone = false)
     {
-        return self::_shorthand(self::T_NUMBER, $bool);
+        return self::_shorthand(self::T_NUMBER, $clone);
     }
 
-    public static function String($bool = false)
+    public static function String($clone = false)
     {
-        return self::_shorthand(self::T_STRING, $bool);
+        return self::_shorthand(self::T_STRING, $clone);
     }
 
-    public static function Buffer($bool = false)
+    public static function Buffer($clone = false)
     {
-        return self::_shorthand(self::T_BUFFER, $bool);
+        return self::_shorthand(self::T_BUFFER, $clone);
     }
 
     public static function Unknown()
@@ -151,54 +151,80 @@ abstract class Type
     }
 
     /**
-     * Returns the value of T_* by a name of the type
+     * Returns the type of a variable.
      *
-     * @param string $typeName
+     * @param mixed $var
      * @return int Type::T_*
-     * @throws InvalidArgumentException
      */
-    public static function constant($typeName)
+    public static function detect($var)
     {
-        $string = self::_getStringValueOf($typeName);
-        if ($string === false) {
+        return self::$_types[gettype($var)];
+    }
+
+    /**
+     * Returns a specific instance of Type.
+     *
+     * @see Type::bind()
+     * @param string $typeName
+     * @param bool $clone returns a cloned instance if true.
+     * @return Type
+     * @throws InvalidArgumentException if $typeName is not string
+     *                                            or is not bound.
+     */
+    public static function of($typeName, $clone = false)
+    {
+        if (!is_string($typeName) &&
+            (!is_object($typeName) ||
+             !method_exists($typeName, '__toString') ||
+             !is_string($typeName = @$typeName->__toString()))) {
             throw new InvalidArgumentException('$typeName must be string');
         }
-        $string = strtolower($string);
-        if (!isset(self::$_types[$string])) {
-            // gettype() might return 'unknown type'
-            throw new InvalidArgumentException('$typeName not found');
+
+        $binds = self::$_binds;
+        if (!isset($binds[$typeName])) {
+            throw new InvalidArgumentException('$typeName not bound');
         }
-        return self::$_types[$string];
+
+        return $clone ? clone $binds[$typeName] : $binds[$typeName];
     }
 
     /**
-     * Detect the type of a variable.
+     * Register a specific instance of Type.
      *
-     * @param mixed $value
-     * @return int Type::T_*
-     */
-    public static function detect($value)
-    {
-        return self::constant(gettype($value));
-    }
-
-    /**
-     * Returns an instance of Type
+     * <code>
+     * <?php
      *
-     * @param mixed $id Type::T_* or class path (eg. Type/String)
-     * @return Type
-     * @throws InvalidArgumentException
+     * class ExtType extends Type {}
+     * Type::bind('MyType', new ExtType())->defaultValue(1);
+     * // ...
+     * echo get_class(Type::of('MyType')); // ExtType
+     * echo get_class(Type::of('ExtType')); // InvalidArgumentException thrown.
+     * ?>
+     * </code>
+     *
+     * @see Type::of()
+     * @param string $typeName
+     * @param Type $instance
+     * @param bool $override
+     * @return Type returns $instance for method-chain.
+     * @throws InvalidArgumentException if $typeName is not string.
+     * @throws BadMethodCallException if $typeName is already bound.
      */
-    public static function singleton($id)
+    public static function bind($typeName, Type $instance, $override = false)
     {
-        if (($classPath = self::_isClassId($id)) === false) {
-            throw new InvaildArgumentExcpeion('Invalid $id');
+        if (!is_string($typeName) &&
+            (!is_object($typeName) ||
+             !method_exists($typeName, '__toString') ||
+             !is_string($typeName = @$typeName->__toString()))) {
+            throw new InvalidArgumentException('$typeName must be string');
         }
 
-        $stock = self::$_singleton;
-        return isset($stock[$classPath])
-               ? $stock[$classPath]
-               : $stock[$classPath] = new self::$_classes[$classPath]();
+        if (!$override && isset(self::$_binds[$typeName])) {
+            throw new BadMethodCallException('$typeName already bound');
+        }
+
+        self::$_binds[$typeName] = $instance;
+        return $instance;
     }
 
     // - PUBLIC STATIC }}}
@@ -229,9 +255,18 @@ abstract class Type
      * @return mixed
      * @throws Type_Exception
      */
-    public function cast($value)
+    abstract public function cast($value);
+
+    /**
+     * Returns a duplication of this object.
+     *
+     * `clone` wrapper for method-chain.
+     *
+     * @return Type
+     */
+    public function copy()
     {
-        return $value;
+        return clone $this;
     }
 
     /**
@@ -246,18 +281,6 @@ abstract class Type
         return $this;
     }
 
-    /**
-     * Returns a duplication of this object.
-     *
-     * `clone` wrapper for method-chain.
-     *
-     * @return Type
-     */
-    public function dup()
-    {
-        return clone $this;
-    }
-
     // - PUBILC DYNAMIC }}}
     // - PUBLIC }}}
 
@@ -265,7 +288,6 @@ abstract class Type
     // {{{ PROTECTED DYNAMIC
 
     protected $_defaultValue = null;
-    protected $_level = self::L_SAFE;
 
     // - PROTECTED DYNAMIC }}}
     // - PROTECTED }}}
@@ -289,176 +311,36 @@ abstract class Type
         'array'    => self::T_INDEX,
         'object'   => self::T_OBJECT,
         'resource' => self::T_RESOURCE,
-        'NULL'     => self::T_NULL);
+        'NULL'     => self::T_NULL,
+        'unknown type' => self::T_UNKNOWN);
 
     /**
      * Class table.
      *
-     * Key: Type::T_* or class path (eg. Type/MySQL/Varchar etc)
-     * Value: Actual class names (eg. Type_MySQL_Varchar)
-     *        excepts built-in classes. (eg. Type/String)
-     *
-     * Built-in case:
-     * <code>
-     * <?php
-     * 
-     * $id = (int)$someOuterValue;
-     * if (!isset(self::$_classes[$id])) {
-     *     exit('$id is not a valid Type::T_*');
-     * }
-     * $classPath = self::$_classes[$id]; // 'Type/*'
-     * if (!isset(self::$_classes[$classPath])) {
-     *     // class Type_* not loaded
-     *     if (!self::_loadTypeSubclass($classPath)) {
-     *         exit('Failed to load class');
-     *     }
-     *     // _loadTypeSubclass() sets $_classes[$classPath]
-     * }
-     * $className = self::$_classes[$classPath]; // 'Type_*'
-     * $instance = new $className();
-     *
-     * ?>
-     * </code>
-     *
-     * @see _isClassId()
      * @var array
      */
     private static $_classes = array(
-        self::T_BOOL     => 'Type/Bool',
-        self::T_INT      => 'Type/Int',
-        self::T_FLOAT    => 'Type/Float',
-        self::T_STRING   => 'Type/String',
-        self::T_INDEX    => 'Type/Index',
-        self::T_OBJECT   => 'Type/Object',
-        self::T_RESOURCE => 'Type/Resource',
-        self::T_NULL     => 'Type/Null',
-        self::T_CALLBACK => 'Type/Callback',
-        self::T_VOID     => 'Type/Void',
-        self::T_MIXED    => 'Type/Mixed',
-        self::T_NUMBER   => 'Type/Number',
-        self::T_STRING   => 'Type/String',
-        self::T_BUFFER   => 'Type/Buffer');
+        self::T_BOOL     => 'Type_Bool',
+        self::T_INT      => 'Type_Int',
+        self::T_FLOAT    => 'Type_Float',
+        self::T_STRING   => 'Type_String',
+        self::T_INDEX    => 'Type_Index',
+        self::T_OBJECT   => 'Type_Object',
+        self::T_RESOURCE => 'Type_Resource',
+        self::T_NULL     => 'Type_Null',
+        self::T_CALLBACK => 'Type_Callback',
+        self::T_VOID     => 'Type_Void',
+        self::T_MIXED    => 'Type_Mixed',
+        self::T_NUMBER   => 'Type_Number',
+        self::T_STRING   => 'Type_String',
+        self::T_BUFFER   => 'Type_Buffer');
 
     /**
-     * Singleton container.
-     *
-     * Key: Type::T_* or class path (eg. Type/String)
-     * Value: Type
+     * User-defined types
      *
      * @var array
      */
-    private static $_singleton = array();
-
-    /**
-     * Returns the string value of a variable.
-     *
-     * Fails if a variable is:
-     *    bool, null, array, resource, no valid __toString() object
-     *
-     * @returns string or false if failed
-     */
-    private static function _getStringValueOf($value)
-    {
-        if (is_scalar($value) || $value === null) {
-            return (string)$value;
-        }
-        if (!is_object($value) || !method_exists($value, '__toString')) {
-            return false;
-        }
-        $string = @$value->__toString();
-        return is_string($string) ? $string : false;
-    }
-
-    /**
-     * Find wheter the value of a variable is a class ID.
-     *
-     * @param mixed Type::T_* or class path (eg. Type/String)
-     * @return string Class path
-     */
-    private static function _isClassId($id)
-    {
-        if (is_numeric($id)) {
-            // treat as Type::T_*
-            $int = (int)$id;
-            if (!isset(self::$_classes[$int])) {
-                return false;
-            }
-            $classPath = self::$_classes[$int];
-            if (isset(self::$_classes[$classPath])) {
-                return $classPath;
-            }
-            return self::_loadTypeSubclass($classPath);
-        }
-
-        if (($classPath = self::_getStringValueOf($id)) === false) {
-            return false;
-        }
-
-        if (isset(self::$_classes[$classPath])) {
-            return $classPath;
-        }
-
-        if (!preg_match('@^[a-z][a-z0-9]*(?:/[a-z][a-z0-9]*)*$@i',
-                        $classPath)) {
-            return false;
-        }
-
-        $className = strpos($classPath, '/') === false
-                   ? $classPath : strtr($classPath, '/', '_');
-        if (!class_exists($className) ||
-            !is_subclass_of($className, __CLASS__)) {
-            return false;
-        }
-
-        self::$_classes[$classPath] = $className;
-        return $classPath;
-    }
-
-    /**
-     * Load a built-in subclass.
-     *
-     * This method must be called once per class.
-     * Test before calling, like isset(self::$_classes['Type/String']).
-     *
-     * @see $_classes
-     * @param string $classPath eg. Type/String
-     * @return string $classPath
-     */
-    private static function _loadTypeSubclass($classPath)
-    {
-        static $dirName = null;
-        static $fixSep = false;
-
-        if ($dirName === null) {
-            $dirName = dirname(__FILE__) . DIRECTORY_SEPARATOR;
-            $fixSep = DIRECTORY_SEPARATOR !== '/';
-        }
-
-        $className = strtr($classPath, '/', '_');
-
-        if (interface_exists($className, false)) {
-            return false;
-        }
-
-        if (class_exists($className, false)) {
-            if (!is_subclass_of($className, __CLASS__)) {
-                return false;
-            }
-        }
-
-        require $dirName
-                . ($fixSep ? strtr($classPath, '/', DIRECTORY_SEPARATOR)
-                           : $classPath)
-                . '.php';
-
-        if (!class_exists($className, false) ||
-            !is_subclass_of($className, __CLASS__)) {
-            return false;
-        }
-
-        self::$_classes[$classPath] = $className;
-        return $classPath;
-    }
+    private static $_binds = array();
 
     /**
      * Return value modification for the shorthand methods.
@@ -466,11 +348,34 @@ abstract class Type
      * @param int $type Type::T_*
      * @param bool $dup if true returns a cloned instance.
      * @return Type
+     * @throws DomainException if the class is already exists.
      */
-    private static function _shorthand($type, $bool)
+    private static function _shorthand($type, $clone)
     {
-        $instance = self::singleton($type);
-        return $bool ? clone $instance : $instance;
+        static $dirName = null;
+
+        $classes = self::$_classes;
+        if (!is_string($singleton[$type])) {
+            return $clone ? clone $classes[$type] : $classes[$type];
+        }
+
+        $className = $classes[$type];
+        if (!class_exists($className, false)) {
+            if ($dirName === null) {
+                $dirName = dirname(__FILE__) . DIRECTORY_SEPARATOR;
+            }
+            require $dirName . strtr($className, '_', DIRECTORY_SEPARATOR)
+                    . '.php';
+        }
+
+        if (!class_exists($className, false) ||
+            !is_subclass_of($className, __CLASS__)) {
+            throw new DomainException("$className not found");
+        }
+
+        $instance = new $className();
+        self::$_classes[$type] = $instance;
+        return $clone ? clone $instance : $instance;
     }
 
     // - PRIVATE STATIC }}}
