@@ -17,6 +17,9 @@
  *             BSD License (2 Clause)
  */
 
+require_once dirname(__FILE__) . DIRECTORY_SEPARATOR
+             . 'Type' . DIRECTORY_SEPARATOR . 'Exception.php';
+
 /**
  * Base type class.
  */
@@ -151,44 +154,6 @@ abstract class Type
     }
 
     /**
-     * Returns the type of a variable.
-     *
-     * @param mixed $var
-     * @return int Type::T_*
-     */
-    public static function detect($var)
-    {
-        return self::$_types[gettype($var)];
-    }
-
-    /**
-     * Returns a specific instance of Type.
-     *
-     * @see Type::bind()
-     * @param string $typeName
-     * @param bool $clone returns a cloned instance if true.
-     * @return Type
-     * @throws InvalidArgumentException if $typeName is not string
-     *                                            or is not bound.
-     */
-    public static function of($typeName, $clone = false)
-    {
-        if (!is_string($typeName) &&
-            (!is_object($typeName) ||
-             !method_exists($typeName, '__toString') ||
-             !is_string($typeName = @$typeName->__toString()))) {
-            throw new InvalidArgumentException('$typeName must be string');
-        }
-
-        $binds = self::$_binds;
-        if (!isset($binds[$typeName])) {
-            throw new InvalidArgumentException('$typeName not bound');
-        }
-
-        return $clone ? clone $binds[$typeName] : $binds[$typeName];
-    }
-
-    /**
      * Register a specific instance of Type.
      *
      * <code>
@@ -225,6 +190,44 @@ abstract class Type
 
         self::$_binds[$typeName] = $instance;
         return $instance;
+    }
+
+    /**
+     * Returns the type of a variable.
+     *
+     * @param mixed $var
+     * @return int Type::T_*
+     */
+    public static function detect($var)
+    {
+        return self::$_types[gettype($var)];
+    }
+
+    /**
+     * Returns a specific instance of Type.
+     *
+     * @see Type::bind()
+     * @param string $typeName
+     * @param bool $clone returns a cloned instance if true.
+     * @return Type
+     * @throws InvalidArgumentException if $typeName is not string
+     *                                            or is not bound.
+     */
+    public static function of($typeName, $clone = false)
+    {
+        if (!is_string($typeName) &&
+            (!is_object($typeName) ||
+             !method_exists($typeName, '__toString') ||
+             !is_string($typeName = @$typeName->__toString()))) {
+            throw new InvalidArgumentException('$typeName must be string');
+        }
+
+        $binds = self::$_binds;
+        if (!isset($binds[$typeName])) {
+            throw new InvalidArgumentException('$typeName not bound');
+        }
+
+        return $clone ? clone $binds[$typeName] : $binds[$typeName];
     }
 
     // - PUBLIC STATIC }}}
@@ -281,6 +284,22 @@ abstract class Type
         return $this;
     }
 
+    /**
+     * Test if the variable is able to cast.
+     *
+     * @param mixed $var
+     * @return bool
+     */
+    public function test($var)
+    {
+        try {
+            $test = $this->cast($var);
+        } catch (Type_Exception $tex) {
+            return false;
+        }
+        return true;
+    }
+
     // - PUBILC DYNAMIC }}}
     // - PUBLIC }}}
 
@@ -294,6 +313,13 @@ abstract class Type
 
     // {{{ PRIVATE
     // {{{ PRIVATE STATIC
+
+    /**
+     * User-defined types.
+     *
+     * @var array
+     */
+    private static $_binds = array();
 
     /**
      * Type table.
@@ -336,13 +362,6 @@ abstract class Type
         self::T_BUFFER   => 'Type_Buffer');
 
     /**
-     * User-defined types
-     *
-     * @var array
-     */
-    private static $_binds = array();
-
-    /**
      * Return value modification for the shorthand methods.
      *
      * @param int $type Type::T_*
@@ -355,7 +374,7 @@ abstract class Type
         static $dirName = null;
 
         $classes = self::$_classes;
-        if (!is_string($singleton[$type])) {
+        if (!is_string($classes[$type])) {
             return $clone ? clone $classes[$type] : $classes[$type];
         }
 
